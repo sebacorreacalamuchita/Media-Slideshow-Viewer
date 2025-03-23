@@ -1,0 +1,8 @@
+{
+    "ruta_imagenes": "C:\\Users\\Escritorio\\Desktop\\Candy",
+    "incluir_subcarpetas": true,
+    "duracion_imagen": 2,
+    "proporcion_pantalla": "mantener",
+    "color_fondo": [0, 0, 0],
+    "mostrar_ruta_archivo": true
+}
