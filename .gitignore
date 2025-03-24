@@ -1,0 +1,17 @@
+# Ignorar la carpeta dist (donde se generan los ejecutables)
+dist/
+
+# Ignorar la carpeta build (generada por PyInstaller)
+build/
+
+# Ignorar archivos temporales de PyInstaller
+*.spec
+
+# Ignorar archivos de configuración del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Ignorar archivos de Python compilados
+__pycache__/
+*.pyc
+*.pyo
