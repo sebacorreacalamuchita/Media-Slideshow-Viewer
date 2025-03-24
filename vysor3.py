@@ -4,6 +4,7 @@ import pygame
 from PIL import Image
 import time
 import json
+import sys
 
 # Cargar configuraciones desde el archivo JSON
 def cargar_configuracion(ruta_config):
@@ -22,9 +23,7 @@ PROPORCION_PANTALLA = config["proporcion_pantalla"]
 COLOR_FONDO = tuple(config["color_fondo"])
 MOSTRAR_RUTA_ARCHIVO = config["mostrar_ruta_archivo"]
 FRAME_RATE = config.get("frame_rate", 30)  # Default to 30 FPS if not specified
-
-# 📸 Extensiones de imagen permitidas
-EXTENSIONES = (".jpg", ".jpeg", ".png", ".bmp", ".gif")
+EXTENSIONES = tuple(config["extensiones"])  # Cargar extensiones desde el JSON
 
 # 🔍 Buscar imágenes en la carpeta y subcarpetas
 def buscar_imagenes(carpeta):
@@ -132,6 +131,19 @@ def mostrar_imagenes(imagenes):
             print(f"❌ Error al cargar {imagen}: {e}")
     pygame.quit()
 
-# 🚀 Ejecutar el visor de imágenes
-imagenes = buscar_imagenes(CARPETA_FUENTE)
-mostrar_imagenes(imagenes)
+def main():
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "/s":  # Ejecutar el protector de pantalla
+            imagenes = buscar_imagenes(CARPETA_FUENTE)
+            mostrar_imagenes(imagenes)
+        elif sys.argv[1] == "/c":  # Configuración (puedes implementar una ventana de configuración)
+            print("Abrir configuración del protector de pantalla")
+        elif sys.argv[1] == "/p":  # Previsualización (puedes implementar una vista previa)
+            print("Previsualización del protector de pantalla")
+    else:
+        # Por defecto, ejecutar el protector de pantalla
+        imagenes = buscar_imagenes(CARPETA_FUENTE)
+        mostrar_imagenes(imagenes)
+
+if __name__ == "__main__":
+    main()
