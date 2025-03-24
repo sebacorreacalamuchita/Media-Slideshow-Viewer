@@ -46,6 +46,8 @@ def mostrar_imagenes(imagenes):
     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     pygame.mouse.set_visible(True)
 
+    random.shuffle(imagenes)  # 🔀 Mezclar imágenes aleatoriamente
+    
     clock = pygame.time.Clock()
     indice = 0  # Índice de la imagen actual
 
