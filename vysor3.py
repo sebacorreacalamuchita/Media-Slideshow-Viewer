@@ -7,82 +7,75 @@ import json
 import sys
 
 # Cargar configuraciones desde el archivo JSON
-def cargar_configuracion(ruta_config):
-    with open(ruta_config, "r") as archivo:
-        return json.load(archivo)
+def load_config(config_path):
+    with open(config_path, "r") as file:
+        return json.load(file)
     
-# Ruta del archivo de configuración
-RUTA_CONFIG = os.path.join(os.path.dirname(__file__), "config.json")
-config = cargar_configuracion(RUTA_CONFIG)
+# Path to config file
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+config = load_config(CONFIG_PATH)
 
-# Usar configuraciones cargadas
-CARPETA_FUENTE = config["ruta_imagenes"]
-INCLUIR_SUBCARPETAS = config["incluir_subcarpetas"]
-DURACION_IMAGEN = config["duracion_imagen"]
-PROPORCION_PANTALLA = config["proporcion_pantalla"]
-COLOR_FONDO = tuple(config["color_fondo"])
-MOSTRAR_RUTA_ARCHIVO = config["mostrar_ruta_archivo"]
-FRAME_RATE = config.get("frame_rate", 30)  # Default to 30 FPS if not specified
-EXTENSIONES = tuple(config["extensiones"])  # Cargar extensiones desde el JSON
+# Use loaded configuration
+SOURCE_FOLDER = config["image_path"]
+INCLUDE_SUBFOLDERS = config["include_subfolders"]
+IMAGE_DURATION = config["image_duration"]
+SCREEN_RATIO = config["screen_ratio"]
+BACKGROUND_COLOR = tuple(config["background_color"])
+SHOW_FILE_PATH = config["show_file_path"]
+FRAME_RATE = config.get("frame_rate", 30)
+EXTENSIONS = tuple(config["extensions"])
 
-# 🔍 Buscar imágenes en la carpeta y subcarpetas
-def buscar_imagenes(carpeta):
-    imagenes = []
-    for root, _, files in os.walk(carpeta):
-        if not INCLUIR_SUBCARPETAS and root != carpeta:
+# Search for images in the folder (and subfolders if enabled)
+def find_images(folder):
+    images = []
+    for root, _, files in os.walk(folder):
+        if not INCLUDE_SUBFOLDERS and root != folder:
             continue
         for file in files:
-            if file.lower().endswith(EXTENSIONES):
-                imagenes.append(os.path.join(root, file))
-    return imagenes
+            if file.lower().endswith(EXTENSIONS):
+                images.append(os.path.join(root, file))
+    return images
 
 # 🖥️ Inicializar pygame para mostrar imágenes
-def mostrar_imagenes(imagenes):
-    if not imagenes:
-        print("⚠️ No se encontraron imágenes en la carpeta ", CARPETA_FUENTE)
+def display_images(images):
+    if not images:
+        print("⚠️ No images found in folder: ", SOURCE_FOLDER)
         return
 
     pygame.init()
     screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     pygame.mouse.set_visible(True)
 
-    random.shuffle(imagenes)  # 🔀 Mezclar imágenes aleatoriamente
+    random.shuffle(images) 
     
     clock = pygame.time.Clock()
-    indice = 0  # Índice de la imagen actual
+    index = 0  
 
-    # Controlar el tiempo de presentación de cada imagen
-    start_time = time.time()  # Registrar el tiempo de inicio
-
-    # Manejar eventos
-    pausado = False  # Variable para controlar el estado de pausa
+    start_time = time.time()
+    paused = False
 
     while True:
         try:
-            imagen = imagenes[indice]
-            img = Image.open(imagen)
+            image_path = images[index]
+            img = Image.open(image_path)
             img = img.convert("RGB")
 
-            # Obtener dimensiones de la pantalla
             screen_width, screen_height = screen.get_size()
-
-            # Calcular dimensiones según la configuración de proporción
             img_width, img_height = img.size
             aspect_ratio = img_width / img_height
 
-            if PROPORCION_PANTALLA == "mantener":
+            if SCREEN_RATIO == "keep":
                 if screen_width / screen_height > aspect_ratio:
                     new_height = screen_height
                     new_width = int(new_height * aspect_ratio)
                 else:
                     new_width = screen_width
                     new_height = int(new_width / aspect_ratio)
-            elif PROPORCION_PANTALLA == "estirar":
+            elif SCREEN_RATIO == "stretch":
                 new_width, new_height = screen_width, screen_height
 
             img = img.resize((new_width, new_height), Image.LANCZOS)
 
-            # Centrar la imagen en la pantalla
             x_offset = (screen_width - new_width) // 2
             y_offset = (screen_height - new_height) // 2
 
@@ -91,61 +84,59 @@ def mostrar_imagenes(imagenes):
             data = img.tobytes()
             pygame_image = pygame.image.fromstring(data, size, mode)
 
-            screen.fill(COLOR_FONDO)
+            screen.fill(BACKGROUND_COLOR)
             screen.blit(pygame_image, (x_offset, y_offset))
 
-            if MOSTRAR_RUTA_ARCHIVO:
+            if SHOW_FILE_PATH:
                 font = pygame.font.Font(None, 36)
                 text_color = (200, 200, 200)
-                ruta_relativa = os.path.relpath(imagen, CARPETA_FUENTE)
-                text_surface = font.render(ruta_relativa, True, text_color)
+                relative_path = os.path.relpath(image_path, SOURCE_FOLDER)
+                text_surface = font.render(relative_path, True, text_color)
                 text_rect = text_surface.get_rect(center=(screen_width // 2, screen_height - 30))
                 screen.blit(text_surface, text_rect)
 
             pygame.display.flip()
 
             # Manejar eventos
-            actualizar_imagen = False  # Bandera para forzar actualización
+            update_image = False
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
                     pygame.quit()
                     return
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RIGHT and not pausado:
-                        indice = (indice + 1) % len(imagenes)
-                        actualizar_imagen = True
+                    if event.key == pygame.K_RIGHT and not paused:
+                        index = (index + 1) % len(images)
+                        update_image = True
                         break
-                    elif event.key == pygame.K_LEFT and not pausado:
-                        indice = (indice - 1) % len(imagenes)
-                        actualizar_imagen = True
+                    elif event.key == pygame.K_LEFT and not paused:
+                        index = (index - 1) % len(images)
+                        update_image = True
                         break
                     elif event.key == pygame.K_SPACE:
-                        pausado = not pausado  # Alternar entre pausa y reanudar
+                        paused = not paused
 
-            # Cambiar a la siguiente imagen automáticamente después de DURACION_IMAGEN segundos
-            if not pausado and not actualizar_imagen and time.time() - start_time >= DURACION_IMAGEN:
-                indice = (indice + 1) % len(imagenes)
-                start_time = time.time()  # Reiniciar el temporizador
+            if not paused and not update_image and time.time() - start_time >= IMAGE_DURATION:
+                index = (index + 1) % len(images)
+                start_time = time.time()
 
             clock.tick(FRAME_RATE)
 
         except Exception as e:
-            print(f"❌ Error al cargar {imagen}: {e}")
+            print(f"❌ Error loading {image_path}: {e}")
     pygame.quit()
 
 def main():
     if len(sys.argv) > 1:
-        if sys.argv[1] == "/s":  # Ejecutar el protector de pantalla
-            imagenes = buscar_imagenes(CARPETA_FUENTE)
-            mostrar_imagenes(imagenes)
+        if sys.argv[1] == "/s":
+            images = find_images(SOURCE_FOLDER)
+            display_images(images)
         elif sys.argv[1] == "/c":  # Configuración (puedes implementar una ventana de configuración)
             print("Abrir configuración del protector de pantalla")
         elif sys.argv[1] == "/p":  # Previsualización (puedes implementar una vista previa)
             print("Previsualización del protector de pantalla")
     else:
-        # Por defecto, ejecutar el protector de pantalla
-        imagenes = buscar_imagenes(CARPETA_FUENTE)
-        mostrar_imagenes(imagenes)
+        images = find_images(SOURCE_FOLDER)
+        display_images(images)
 
 if __name__ == "__main__":
     main()
