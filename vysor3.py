@@ -104,16 +104,17 @@ def display_images(images):
                     pygame.quit()
                     return
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RIGHT and not paused:
-                        index = (index + 1) % len(images)
-                        update_image = True
-                        break
-                    elif event.key == pygame.K_LEFT and not paused:
-                        index = (index - 1) % len(images)
-                        update_image = True
-                        break
-                    elif event.key == pygame.K_SPACE:
-                        paused = not paused
+                    if event.key in [pygame.K_RIGHT, pygame.K_LEFT, pygame.K_SPACE]:
+                        if event.key == pygame.K_RIGHT and not paused:
+                            index = (index + 1) % len(images)
+                            update_image = True
+                            break
+                        elif event.key == pygame.K_LEFT and not paused:
+                            index = (index - 1) % len(images)
+                            update_image = True
+                            break
+                        elif event.key == pygame.K_SPACE:
+                            paused = not paused
 
             if not paused and not update_image and time.time() - start_time >= IMAGE_DURATION:
                 index = (index + 1) % len(images)
