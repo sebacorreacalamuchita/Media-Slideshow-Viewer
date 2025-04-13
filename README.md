@@ -43,6 +43,18 @@ pip install pygame pillow
    cd media-slideshow-viewer
    ```
 3. Modify the `config.json` file according to your preferences.
+4. Use the provided `.bat` script to create and install the screensaver:
+   - Run the `create_screensaver.bat` script located in the `scripts` folder to generate the `.scr` file and install it in the `System32` folder.
+
+   Example:
+   ```sh
+   scripts\create_screensaver.bat
+   ```
+
+   The script will:
+   - Verify Python and required dependencies.
+   - Generate the screensaver executable.
+   - Request administrator permissions to copy the `.scr` file to the `System32` folder.
 
 ## Configuration (config.json)
 
