@@ -58,6 +58,22 @@ def display_images(images):
         try:
             image_path = images[index]
             img = Image.open(image_path)
+            # Correct orientation using EXIF if available
+            try:
+                exif = img._getexif()
+                if exif is not None:
+                    orientation_key = 274  # cf ExifTags
+                    if orientation_key in exif:
+                        orientation = exif[orientation_key]
+                        if orientation == 3:
+                            img = img.rotate(180, expand=True)
+                        elif orientation == 6:
+                            img = img.rotate(270, expand=True)
+                        elif orientation == 8:
+                            img = img.rotate(90, expand=True)
+            except Exception:
+                pass
+
             img = img.convert("RGB")
 
             screen_width, screen_height = screen.get_size()
@@ -104,7 +120,7 @@ def display_images(images):
                     pygame.quit()
                     return
                 elif event.type == pygame.KEYDOWN:
-                    if event.key in [pygame.K_RIGHT, pygame.K_LEFT, pygame.K_SPACE]:
+                    if event.key in [pygame.K_RIGHT, pygame.K_LEFT, pygame.K_SPACE, pygame.K_e]:
                         if event.key == pygame.K_RIGHT and not paused:
                             index = (index + 1) % len(images)
                             update_image = True
@@ -115,7 +131,7 @@ def display_images(images):
                             break
                         elif event.key == pygame.K_SPACE:
                             paused = not paused
-
+                        
             if not paused and not update_image and time.time() - start_time >= IMAGE_DURATION:
                 index = (index + 1) % len(images)
                 start_time = time.time()
