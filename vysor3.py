@@ -131,7 +131,17 @@ def display_images(images):
                             break
                         elif event.key == pygame.K_SPACE:
                             paused = not paused
-                        
+                        elif event.key == pygame.K_e:
+                            # Pause slideshow and open Windows Explorer with the current image selected
+                            import subprocess
+                            try:
+                                paused = True
+                                pygame.display.iconify()  # Minimize the window
+                                subprocess.Popen(['explorer', '/select,', image_path])
+                                # The slideshow remains paused until user presses SPACE again
+                            except Exception as open_err:
+                                print(f"Error opening Explorer: {open_err}")
+
             if not paused and not update_image and time.time() - start_time >= IMAGE_DURATION:
                 index = (index + 1) % len(images)
                 start_time = time.time()
