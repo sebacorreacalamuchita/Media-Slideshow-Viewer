@@ -14,7 +14,41 @@ def load_config(config_path):
         return json.load(file)
 
 
+def get_config_candidates():
+    candidates = []
+    seen = set()
+
+    for base_path in [__file__, sys.executable, sys.argv[0]]:
+        if not base_path:
+            continue
+        try:
+            base_dir = os.path.dirname(os.path.abspath(base_path))
+        except Exception:
+            continue
+        if base_dir in seen:
+            continue
+        seen.add(base_dir)
+        candidates.append(os.path.join(base_dir, "config.json"))
+
+    appdata_dir = os.getenv("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), "AppData", "Local")
+    fallback_dir = os.path.join(appdata_dir, "Vysor3")
+    candidates.append(os.path.join(fallback_dir, "config.json"))
+    candidates.append(os.path.join(os.path.expanduser("~"), "Vysor3", "config.json"))
+    return candidates
+
+
+def resolve_config_path():
+    for candidate in get_config_candidates():
+        if os.path.isfile(candidate):
+            return candidate
+
+    fallback_path = get_config_candidates()[-2]
+    os.makedirs(os.path.dirname(fallback_path), exist_ok=True)
+    return fallback_path
+
+
 def save_config(config_path, config_data):
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
     with open(config_path, "w") as file:
         json.dump(config_data, file, indent=4)
         file.write("\n")
@@ -32,7 +66,19 @@ def apply_config(config_data):
     EXTENSIONS = tuple(config_data["extensions"])
 
 # Path to config file
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+CONFIG_PATH = resolve_config_path()
+if not os.path.isfile(CONFIG_PATH):
+    default_config = {
+        "image_path": os.path.expanduser("~\Pictures"),
+        "include_subfolders": True,
+        "image_duration": 10,
+        "screen_ratio": "keep",
+        "background_color": [0, 0, 0],
+        "show_file_path": True,
+        "extensions": [".jpg", ".jpeg", ".png", ".bmp", ".gif"],
+    }
+    save_config(CONFIG_PATH, default_config)
+
 config = load_config(CONFIG_PATH)
 
 # Use loaded configuration
@@ -276,7 +322,7 @@ def print_help():
     print("Opciones:")
     print("  /s [ruta]   Ejecutar el protector de pantalla usando la ruta de imágenes especificada.")
     print("              Si no se indica ruta, se usa la carpeta configurada en config.json.")
-    print("  /c          Mostrar esta ayuda de configuración")
+    print("  /c          Abrir el cuadro de diálogo de configuración")
     print("  /p          Mostrar vista previa del protector de pantalla")
     print("  /h, /?      Mostrar esta ayuda")
     print("")
@@ -299,7 +345,7 @@ def main():
             images = find_images(source_folder)
             display_images(images)
         elif arg == "/c":
-            print_help()
+            show_config_dialog()
         elif arg == "/p":
             images = find_images(SOURCE_FOLDER)
             display_images(images)
