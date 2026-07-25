@@ -5,25 +5,143 @@ from PIL import Image
 import time
 import json
 import sys
+import tkinter as tk
+from tkinter import colorchooser, filedialog, messagebox, ttk
 
 # Cargar configuraciones desde el archivo JSON
 def load_config(config_path):
     with open(config_path, "r") as file:
         return json.load(file)
-    
+
+
+def save_config(config_path, config_data):
+    with open(config_path, "w") as file:
+        json.dump(config_data, file, indent=4)
+        file.write("\n")
+
+
+def apply_config(config_data):
+    global SOURCE_FOLDER, INCLUDE_SUBFOLDERS, IMAGE_DURATION, SCREEN_RATIO, BACKGROUND_COLOR, SHOW_FILE_PATH, FRAME_RATE, EXTENSIONS
+    SOURCE_FOLDER = config_data["image_path"]
+    INCLUDE_SUBFOLDERS = config_data["include_subfolders"]
+    IMAGE_DURATION = config_data["image_duration"]
+    SCREEN_RATIO = config_data["screen_ratio"]
+    BACKGROUND_COLOR = tuple(config_data["background_color"])
+    SHOW_FILE_PATH = config_data["show_file_path"]
+    FRAME_RATE = config_data.get("frame_rate", 30)
+    EXTENSIONS = tuple(config_data["extensions"])
+
 # Path to config file
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 config = load_config(CONFIG_PATH)
 
 # Use loaded configuration
-SOURCE_FOLDER = config["image_path"]
-INCLUDE_SUBFOLDERS = config["include_subfolders"]
-IMAGE_DURATION = config["image_duration"]
-SCREEN_RATIO = config["screen_ratio"]
-BACKGROUND_COLOR = tuple(config["background_color"])
-SHOW_FILE_PATH = config["show_file_path"]
-FRAME_RATE = config.get("frame_rate", 30)
-EXTENSIONS = tuple(config["extensions"])
+apply_config(config)
+
+
+def normalize_extensions(value):
+    extensions = []
+    for item in value.split(","):
+        ext = item.strip().lower()
+        if not ext:
+            continue
+        if not ext.startswith("."):
+            ext = f".{ext}"
+        extensions.append(ext)
+    return extensions
+
+
+def show_config_dialog():
+    root = tk.Tk()
+    root.title("Vysor3 - Configuración")
+    root.geometry("640x440")
+    root.resizable(False, False)
+
+    main_frame = ttk.Frame(root, padding=16)
+    main_frame.pack(fill="both", expand=True)
+
+    image_path_var = tk.StringVar(value=SOURCE_FOLDER)
+    include_subfolders_var = tk.BooleanVar(value=INCLUDE_SUBFOLDERS)
+    image_duration_var = tk.IntVar(value=int(IMAGE_DURATION))
+    screen_ratio_var = tk.StringVar(value=SCREEN_RATIO)
+    background_color_var = tk.StringVar(value="#%02x%02x%02x" % BACKGROUND_COLOR)
+    show_file_path_var = tk.BooleanVar(value=SHOW_FILE_PATH)
+    extensions_var = tk.StringVar(value=", ".join(EXTENSIONS))
+
+    ttk.Label(main_frame, text="Ruta de imágenes:").grid(row=0, column=0, sticky="w", pady=(0, 6))
+    path_entry = ttk.Entry(main_frame, textvariable=image_path_var, width=60)
+    path_entry.grid(row=1, column=0, columnspan=2, sticky="ew")
+
+    def browse_folder():
+        selected_folder = filedialog.askdirectory(
+            initialdir=image_path_var.get() or os.path.expanduser("~"),
+            title="Selecciona la carpeta de imágenes"
+        )
+        if selected_folder:
+            image_path_var.set(selected_folder)
+
+    browse_button = ttk.Button(main_frame, text="Explorar", command=browse_folder)
+    browse_button.grid(row=1, column=2, padx=(8, 0), sticky="ew")
+
+    ttk.Checkbutton(main_frame, text="Incluir subcarpetas", variable=include_subfolders_var).grid(row=2, column=0, columnspan=3, sticky="w", pady=(8, 8))
+
+    ttk.Label(main_frame, text="Duración de cada imagen (segundos):").grid(row=3, column=0, sticky="w", pady=(0, 6))
+    ttk.Spinbox(main_frame, from_=1, to=120, textvariable=image_duration_var, width=12).grid(row=4, column=0, sticky="w")
+
+    ttk.Label(main_frame, text="Ajuste de pantalla:").grid(row=3, column=1, sticky="w", padx=(16, 0), pady=(0, 6))
+    ratio_combo = ttk.Combobox(main_frame, textvariable=screen_ratio_var, values=["keep", "stretch"], state="readonly", width=16)
+    ratio_combo.grid(row=4, column=1, sticky="w", padx=(16, 0))
+
+    ttk.Label(main_frame, text="Color de fondo:").grid(row=5, column=0, sticky="w", pady=(10, 6))
+    color_button = ttk.Button(main_frame, text="Elegir color", command=lambda: None)
+    color_button.grid(row=6, column=0, sticky="w")
+
+    def pick_color():
+        selected = colorchooser.askcolor(initialcolor=background_color_var.get(), title="Elige el color de fondo")
+        if selected[1]:
+            background_color_var.set(selected[1])
+
+    color_button.configure(command=pick_color)
+
+    color_preview = ttk.Label(main_frame, text="███", foreground=background_color_var.get(), background=background_color_var.get())
+    color_preview.grid(row=6, column=1, sticky="w", padx=(10, 0))
+
+    ttk.Checkbutton(main_frame, text="Mostrar ruta del archivo", variable=show_file_path_var).grid(row=7, column=0, columnspan=3, sticky="w", pady=(10, 6))
+
+    ttk.Label(main_frame, text="Extensiones permitidas (separadas por comas):").grid(row=8, column=0, columnspan=3, sticky="w", pady=(0, 6))
+    ttk.Entry(main_frame, textvariable=extensions_var, width=80).grid(row=9, column=0, columnspan=3, sticky="ew")
+
+    def save_settings():
+        try:
+            duration = max(1, int(image_duration_var.get()))
+            color_value = background_color_var.get()
+            if not color_value.startswith("#"):
+                color_value = f"#{color_value}"
+            rgb = tuple(int(color_value[i:i+2], 16) for i in (1, 3, 5))
+            new_config = {
+                "image_path": image_path_var.get().strip() or SOURCE_FOLDER,
+                "include_subfolders": bool(include_subfolders_var.get()),
+                "image_duration": duration,
+                "screen_ratio": screen_ratio_var.get() or "keep",
+                "background_color": [rgb[0], rgb[1], rgb[2]],
+                "show_file_path": bool(show_file_path_var.get()),
+                "extensions": normalize_extensions(extensions_var.get()),
+            }
+            if not new_config["extensions"]:
+                new_config["extensions"] = [".jpg", ".jpeg", ".png", ".bmp", ".gif"]
+            save_config(CONFIG_PATH, new_config)
+            apply_config(new_config)
+            messagebox.showinfo("Configuración guardada", "Los cambios se han guardado correctamente.")
+            root.destroy()
+        except Exception as exc:
+            messagebox.showerror("Error", f"No se pudo guardar la configuración: {exc}")
+
+    button_frame = ttk.Frame(main_frame)
+    button_frame.grid(row=10, column=0, columnspan=3, sticky="e", pady=(16, 0))
+    ttk.Button(button_frame, text="Guardar", command=save_settings).pack(side="left")
+    ttk.Button(button_frame, text="Cancelar", command=root.destroy).pack(side="left", padx=(8, 0))
+
+    root.mainloop()
 
 # Search for images in the folder (and subfolders if enabled)
 def find_images(folder):
@@ -152,15 +270,42 @@ def display_images(images):
             print(f"❌ Error loading {image_path}: {e}")
     pygame.quit()
 
+
+def print_help():
+    print("Uso: vysor3.exe [opción] [ruta]")
+    print("Opciones:")
+    print("  /s [ruta]   Ejecutar el protector de pantalla usando la ruta de imágenes especificada.")
+    print("              Si no se indica ruta, se usa la carpeta configurada en config.json.")
+    print("  /c          Mostrar esta ayuda de configuración")
+    print("  /p          Mostrar vista previa del protector de pantalla")
+    print("  /h, /?      Mostrar esta ayuda")
+    print("")
+    print("Ejemplo:")
+    print("  vysor3.exe /s \"C:\\Users\\TuUsuario\\Pictures\\Screensaver\"")
+    print("")
+    print("Esto permite cambiar la carpeta de imágenes en tiempo de ejecución sin editar config.json ni recompilar.")
+
+
 def main():
     if len(sys.argv) > 1:
-        if sys.argv[1] == "/s":
+        arg = sys.argv[1].lower()
+        if arg in ["/h", "/?", "-h", "--help"]:
+            print_help()
+            return
+        if arg == "/s":
+            source_folder = SOURCE_FOLDER
+            if len(sys.argv) > 2:
+                source_folder = sys.argv[2]
+            images = find_images(source_folder)
+            display_images(images)
+        elif arg == "/c":
+            print_help()
+        elif arg == "/p":
             images = find_images(SOURCE_FOLDER)
             display_images(images)
-        elif sys.argv[1] == "/c":  # Configuración (puedes implementar una ventana de configuración)
-            print("Abrir configuración del protector de pantalla")
-        elif sys.argv[1] == "/p":  # Previsualización (puedes implementar una vista previa)
-            print("Previsualización del protector de pantalla")
+        else:
+            print("Opción no reconocida.")
+            print_help()
     else:
         images = find_images(SOURCE_FOLDER)
         display_images(images)
