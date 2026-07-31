@@ -260,6 +260,7 @@ def display_images(images):
             mode = img.mode
             size = img.size
             data = img.tobytes()
+            img.close()
             pygame_image = pygame.image.fromstring(data, size, mode)
 
             screen.fill(BACKGROUND_COLOR)
