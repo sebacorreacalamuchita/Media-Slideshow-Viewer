@@ -55,11 +55,12 @@ def save_config(config_path, config_data):
 
 
 def apply_config(config_data):
-    global SOURCE_FOLDER, INCLUDE_SUBFOLDERS, IMAGE_DURATION, SCREEN_RATIO, BACKGROUND_COLOR, SHOW_FILE_PATH, FRAME_RATE, EXTENSIONS
+    global SOURCE_FOLDER, INCLUDE_SUBFOLDERS, IMAGE_DURATION, SCREEN_RATIO, BACKGROUND_COLOR, SHOW_FILE_PATH, FRAME_RATE, EXTENSIONS, STRETCH_SMALL_IMAGES
     SOURCE_FOLDER = config_data["image_path"]
     INCLUDE_SUBFOLDERS = config_data["include_subfolders"]
     IMAGE_DURATION = config_data["image_duration"]
     SCREEN_RATIO = config_data["screen_ratio"]
+    STRETCH_SMALL_IMAGES = config_data.get("stretch_small_images", False)
     BACKGROUND_COLOR = tuple(config_data["background_color"])
     SHOW_FILE_PATH = config_data["show_file_path"]
     FRAME_RATE = config_data.get("frame_rate", 30)
@@ -70,7 +71,10 @@ CONFIG_PATH = resolve_config_path()
 if not os.path.isfile(CONFIG_PATH):
     default_config = {
         "image_path": os.path.expanduser("~/Pictures"),
+        "include_subfolders": True,
+        "image_duration": 5,
         "screen_ratio": "keep",
+        "stretch_small_images": False,
         "background_color": [0, 0, 0],
         "show_file_path": True,
         "extensions": [".jpg", ".jpeg", ".png", ".bmp", ".gif"],
@@ -108,6 +112,7 @@ def show_config_dialog():
     include_subfolders_var = tk.BooleanVar(value=INCLUDE_SUBFOLDERS)
     image_duration_var = tk.IntVar(value=int(IMAGE_DURATION))
     screen_ratio_var = tk.StringVar(value=SCREEN_RATIO)
+    stretch_small_images_var = tk.BooleanVar(value=STRETCH_SMALL_IMAGES)
     background_color_var = tk.StringVar(value="#%02x%02x%02x" % BACKGROUND_COLOR)
     show_file_path_var = tk.BooleanVar(value=SHOW_FILE_PATH)
     extensions_var = tk.StringVar(value=", ".join(EXTENSIONS))
@@ -150,10 +155,11 @@ def show_config_dialog():
     color_preview = ttk.Label(main_frame, text="███", foreground=background_color_var.get(), background=background_color_var.get())
     color_preview.grid(row=6, column=1, sticky="w", padx=(10, 0))
 
-    ttk.Checkbutton(main_frame, text="Mostrar ruta del archivo", variable=show_file_path_var).grid(row=7, column=0, columnspan=3, sticky="w", pady=(10, 6))
+    ttk.Checkbutton(main_frame, text="Permitir estirar imágenes menores que la pantalla", variable=stretch_small_images_var).grid(row=7, column=0, columnspan=3, sticky="w", pady=(10, 6))
+    ttk.Checkbutton(main_frame, text="Mostrar ruta del archivo", variable=show_file_path_var).grid(row=8, column=0, columnspan=3, sticky="w", pady=(10, 6))
 
-    ttk.Label(main_frame, text="Extensiones permitidas (separadas por comas):").grid(row=8, column=0, columnspan=3, sticky="w", pady=(0, 6))
-    ttk.Entry(main_frame, textvariable=extensions_var, width=80).grid(row=9, column=0, columnspan=3, sticky="ew")
+    ttk.Label(main_frame, text="Extensiones permitidas (separadas por comas):").grid(row=9, column=0, columnspan=3, sticky="w", pady=(0, 6))
+    ttk.Entry(main_frame, textvariable=extensions_var, width=80).grid(row=10, column=0, columnspan=3, sticky="ew")
 
     def save_settings():
         try:
@@ -167,6 +173,7 @@ def show_config_dialog():
                 "include_subfolders": bool(include_subfolders_var.get()),
                 "image_duration": duration,
                 "screen_ratio": screen_ratio_var.get() or "keep",
+                "stretch_small_images": bool(stretch_small_images_var.get()),
                 "background_color": [rgb[0], rgb[1], rgb[2]],
                 "show_file_path": bool(show_file_path_var.get()),
                 "extensions": normalize_extensions(extensions_var.get()),
@@ -249,8 +256,18 @@ def display_images(images):
                 else:
                     new_width = screen_width
                     new_height = int(new_width / aspect_ratio)
+
+                if not STRETCH_SMALL_IMAGES and (new_width > img_width or new_height > img_height):
+                    # No upscale: keep original size if any target dimension would enlarge the image
+                    new_width, new_height = img_width, img_height
             elif SCREEN_RATIO == "stretch":
-                new_width, new_height = screen_width, screen_height
+                if STRETCH_SMALL_IMAGES:
+                    new_width, new_height = screen_width, screen_height
+                elif img_width > screen_width and img_height > screen_height:
+                    # Only downscale when both dimensions exceed screen size
+                    new_width, new_height = screen_width, screen_height
+                else:
+                    new_width, new_height = img_width, img_height
 
             img = img.resize((new_width, new_height), Image.LANCZOS)
 
