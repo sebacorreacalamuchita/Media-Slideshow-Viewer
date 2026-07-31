@@ -69,9 +69,7 @@ def apply_config(config_data):
 CONFIG_PATH = resolve_config_path()
 if not os.path.isfile(CONFIG_PATH):
     default_config = {
-        "image_path": os.path.expanduser("~\Pictures"),
-        "include_subfolders": True,
-        "image_duration": 10,
+        "image_path": os.path.expanduser("~/Pictures"),
         "screen_ratio": "keep",
         "background_color": [0, 0, 0],
         "show_file_path": True,
@@ -323,7 +321,7 @@ def print_help():
     print("  /s [ruta]   Ejecutar el protector de pantalla usando la ruta de imágenes especificada.")
     print("              Si no se indica ruta, se usa la carpeta configurada en config.json.")
     print("  /c          Abrir el cuadro de diálogo de configuración")
-    print("  /p          Mostrar vista previa del protector de pantalla")
+    print("  /p          Modo vista previa (no se muestra en pantalla completa)")
     print("  /h, /?      Mostrar esta ayuda")
     print("")
     print("Ejemplo:")
@@ -332,29 +330,44 @@ def print_help():
     print("Esto permite cambiar la carpeta de imágenes en tiempo de ejecución sin editar config.json ni recompilar.")
 
 
+def preview_mode():
+    # Windows often invokes the screensaver with /p from the Screen Saver Settings dialog.
+    # We intentionally do not launch the full-screen slideshow in preview mode.
+    time.sleep(2)
+
+
 def main():
     if len(sys.argv) > 1:
         arg = sys.argv[1].lower()
-        if arg in ["/h", "/?", "-h", "--help"]:
+        if arg.startswith("/") or arg.startswith("-"):
+            arg = arg[1:]
+
+        if arg in ["h", "?", "help"] or arg.startswith("h"):
             print_help()
             return
-        if arg == "/s":
+
+        if arg.startswith("s"):
             source_folder = SOURCE_FOLDER
-            if len(sys.argv) > 2:
+            if len(sys.argv) > 2 and sys.argv[2].strip():
                 source_folder = sys.argv[2]
             images = find_images(source_folder)
             display_images(images)
-        elif arg == "/c":
+            return
+
+        if arg.startswith("c"):
             show_config_dialog()
-        elif arg == "/p":
-            images = find_images(SOURCE_FOLDER)
-            display_images(images)
-        else:
-            print("Opción no reconocida.")
-            print_help()
-    else:
-        images = find_images(SOURCE_FOLDER)
-        display_images(images)
+            return
+
+        if arg.startswith("p"):
+            preview_mode()
+            return
+
+        print("Opción no reconocida.")
+        print_help()
+        return
+
+    images = find_images(SOURCE_FOLDER)
+    display_images(images)
 
 if __name__ == "__main__":
     main()
